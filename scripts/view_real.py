@@ -16,11 +16,13 @@ from duckietown.sdk.robots.duckiebot import DB21J
 from training.environment import camera_input
 from utils.utils import validate_model
 from scripts.visualizer import CameraPreview
+from utils.line_detection import LineDetector
 
 
 def show_camera(bot_name, settings=None):
     bot_name = bot_name.removesuffix(".local")
     viewer = CameraPreview()
+    detector = LineDetector()
     robot = DB21J(bot_name, simulated=False)
     try:
         robot.camera.start()
@@ -39,7 +41,8 @@ def show_camera(bot_name, settings=None):
             first_frame = False
             last_frame = time.monotonic()
             image = camera_input(frame[:, :, [2, 1, 0]], settings)
-            viewer.show(image, raw_image=frame[:, :, [2,1,0]])
+            detector.detect(image)
+            viewer.show(image, detector, raw_image=frame[:, :, [2,1,0]])
             if not viewer.preview:
                 raise RuntimeError("A desktop display is needed for the Matplotlib preview.")
     finally:

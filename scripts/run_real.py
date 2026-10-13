@@ -18,6 +18,7 @@ from duckietown.sdk.middleware.dtps.components import GenericDTPSPublisher
 
 from training.environment import camera_input, steering_wheels, CameraHistory
 from scripts.visualizer import CameraPreview
+from utils.line_detection import LineDetector
 from utils.utils import saved_speed, validate_model
 
 
@@ -26,13 +27,11 @@ from utils.utils import saved_speed, validate_model
 MOTOR_GAIN = 1.0
 
 
-def real_wheels(action, speed, gain, pwm_scale=1.0):
+def real_wheels(action, speed, gain):
     """Scale the model's wheel commands, preserving steering and forward motion."""
     if not math.isfinite(gain) or gain <= 0:
         raise ValueError("MOTOR_GAIN must be positive and finite")
-    if not math.isfinite(pwm_scale) or pwm_scale <= 0:
-        raise ValueError("model PWM scale must be positive and finite")
-    wheels = steering_wheels(action, speed) * pwm_scale * gain
+    wheels = steering_wheels(action, speed) * gain
     # PWM cannot exceed 1. Scale both together to keep the steering ratio.
     maximum = float(wheels.max())
     if maximum > 1.0:
@@ -56,6 +55,7 @@ def drive(model, bot_name, speed, duration, preview=True, gain=MOTOR_GAIN):
     robot = DB21J(bot_name, simulated=False)
     robot.add("motors", "base", RealMotors(bot_name))
     viewer = CameraPreview() if preview else None
+    detector = LineDetector()
     history = CameraHistory()
     try:
         robot.motors.start()
@@ -70,9 +70,10 @@ def drive(model, bot_name, speed, duration, preview=True, gain=MOTOR_GAIN):
         while time.monotonic() - started < duration:
             image = camera_input(frame[:, :, [2, 1, 0]], model.camera_settings)
             if viewer is not None:
-                viewer.show(image, raw_image=frame[:, :, [2,1,0]])
+                detector.detect(image)
+                viewer.show(image, detector, raw_image=frame[:, :, [2,1,0]])
             action, _ = model.predict(history.push(image), deterministic=True)
-            left, right = real_wheels(action, speed, gain, getattr(model, "pwm_scale", 1.0))
+            left, right = real_wheels(action, speed, gain)
             # Use the shared steering mapping with the compensated real speed.
             robot.motors.set_pwm(left=float(left), right=float(right))
             remaining = 0.05 - (time.monotonic() - last_frame)
@@ -118,7 +119,7 @@ def main():
         gain = MOTOR_GAIN if args.speed is None else 1.0
         # Validate commands before starting hardware; no model-saved gain
         # overrides the editable constant above.
-        straight = real_wheels(2, speed, gain, getattr(model, "pwm_scale", 1.0))
+        straight = real_wheels(2, speed, gain)
     except ValueError as error:
         parser.error(str(error))
     print(

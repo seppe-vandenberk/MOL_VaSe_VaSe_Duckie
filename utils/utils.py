@@ -5,25 +5,15 @@ from stable_baselines3.common.callbacks import BaseCallback
 
 def validate_model(model):
     """Reject old speed semantics/frame layouts before connecting hardware."""
-    if getattr(model, "model_version", None) != MODEL_VERSION:
-        raise ValueError("Model uses the old camera/speed setup; retrain with training/train.py")
-    if getattr(model, "observation_color_space", None) != "SEGMENTED_RGB":
-        raise ValueError("Model must use segmented camera images")
-    if model.observation_space.shape not in ((15, 40, 80), (40, 80, 15)):
-        raise ValueError("Model must use five stacked 40x80 segmented frames")
-    if getattr(model.action_space, "n", None) != 5:
-        raise ValueError("Model must have five steering outputs")
+    if (getattr(model,"model_version",None) != MODEL_VERSION
+            or model.observation_space.shape not in ((9,84,84),(84,84,9))
+            or getattr(model.action_space,"n",None) != 5):
+        raise ValueError("Use a model trained with the current three-frame RGB setup")
 
 
 def saved_speed(model):
     """Use the speed inside the zip, never today's config or its filename."""
-    config = getattr(model, "training_config", None)
-    if not isinstance(config, dict) or "MAX_SPEED" not in config:
-        raise ValueError(
-            "Model has no saved MAX_SPEED. Retrain, or explicitly provide --speed "
-            "when running the real bot."
-        )
-    return float(config["MAX_SPEED"])
+    return float(model.training_config["MAX_SPEED"])
 
 
 class SaveRewards(BaseCallback):
@@ -38,13 +28,10 @@ class SaveRewards(BaseCallback):
             "steps",
             "reward_total",
             "termination_reason",
-            "distance_driven_m",
-            "right_lane_distance_m",
-            "speed_m_s",
-            "lane_distance",
-            "heading_alignment",
-            "in_right_lane",
-            "off_road",
+            "left_line_type",
+            "right_line_type",
+            "line_alignment",
+            "missing_line_steps",
         ])
 
         self.batch_writer = csv.writer(batch_file)
@@ -80,13 +67,10 @@ class SaveRewards(BaseCallback):
                 self.episode_steps,
                 self.episode_reward,
                 info.get("termination_reason"),
-                info.get("distance_driven_m"),
-                info.get("right_lane_distance_m"),
-                info.get("speed_m_s"),
-                info.get("lane_distance"),
-                info.get("heading_alignment"),
-                info.get("in_right_lane"),
-                info.get("off_road"),
+                info.get("left_line_type"),
+                info.get("right_line_type"),
+                info.get("line_alignment"),
+                info.get("missing_line_steps"),
             ])
             self.episode_file.flush()
 

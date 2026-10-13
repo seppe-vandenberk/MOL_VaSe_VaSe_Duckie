@@ -9,12 +9,11 @@ if __package__ in (None, ""):
 
 import argparse
 import time
-import math
 
 from stable_baselines3 import DQN
 
 from training.environment import DiscreteSteering, RoadCamera, FrameStackCamera
-from training.reward import LaneReward
+from training.reward import LineReward
 from utils.utils import saved_speed, validate_model
 
 
@@ -25,30 +24,20 @@ def evaluate_run(model, env, duration):
     total_reward = 0.0
     steps = 0
     failures = 0
-    distance = 0.0
-    centered_distance = 0.0
-    previous_centered_distance = 0.0
     while time.monotonic() - started < duration:
         action, _ = model.predict(observation, deterministic=True)
         observation, reward, terminated, truncated, info = env.step(action)
         total_reward += float(reward)
         steps += 1
-        distance += info.get("step_distance_m", 0.0)
-        current_centered_distance = info.get("right_lane_distance_m", 0.0)
-        centered_distance += max(0.0, current_centered_distance - previous_centered_distance)
-        previous_centered_distance = current_centered_distance
         if terminated or truncated:
             failures += 1
             print(f"  reset: {info.get('termination_reason')}")
             if time.monotonic() - started < duration:
                 observation, _ = env.reset()
-                previous_centered_distance = 0.0
     env.unwrapped.robot.motors.set_pwm(left=0.0, right=0.0)
     elapsed = time.monotonic() - started
     print(
         f"seconds={elapsed:.1f} steps={steps} failures={failures} "
-        f"distance_m={distance:.3f} "
-        f"right_lane_distance_m={centered_distance:.3f} "
         f"reward_total={total_reward:.3f} "
         f"reward_per_step={total_reward / max(steps, 1):.3f}"
     )
@@ -64,19 +53,15 @@ def main():
     parser.add_argument("--entity", default="map_0/vehicle_0",
                         help="use a different vehicle when training is running")
     arguments = parser.parse_args()
-    if arguments.runs < 1 or not math.isfinite(arguments.duration) or arguments.duration <= 0:
-        parser.error("--runs and --duration must be positive")
 
     if arguments.model:
         model_path = Path(arguments.model)
     else:
-        saved_models = list((PROJECT_ROOT / "models").glob("dqn_paper5_*.zip"))
+        saved_models = list((PROJECT_ROOT / "models").glob("dqn_simple_*.zip"))
         model_path = (
             max(saved_models, key=lambda path: path.stat().st_mtime_ns)
             if saved_models else PROJECT_ROOT / "models" / "no_camera_rgb_model.zip"
         )
-    if not model_path.is_file():
-        parser.error(f"model not found: {model_path}")
 
     print(f"Evaluating model: {model_path}")
     model = DQN.load(model_path, device="auto")
@@ -86,7 +71,7 @@ def main():
     except ValueError as error:
         parser.error(str(error))
     print(f"Saved training configuration: {model.training_config}")
-    reward_env = LaneReward(
+    reward_env = LineReward(
             entity_name=arguments.entity,
             camera_settings=model.camera_settings,
         )
@@ -95,7 +80,6 @@ def main():
             setattr(reward_env, name, value)
     env = DiscreteSteering(
         FrameStackCamera(RoadCamera(reward_env)), speed=speed,
-        pwm_scale=getattr(model, "pwm_scale", 1.0),
     )
     returns = []
     try:

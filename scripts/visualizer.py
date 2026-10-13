@@ -1,6 +1,8 @@
-"""Local Matplotlib preview of raw RGB and the paper's segmented CNN frame."""
+"""Local Matplotlib preview of the RGB camera crop and line detections."""
 
 import time
+import cv2
+import numpy as np
 
 
 class CameraPreview:
@@ -23,6 +25,16 @@ class CameraPreview:
                 raise KeyboardInterrupt
             return
         raw = observation if raw_image is None else raw_image
+        annotated = observation.copy()
+        mask = getattr(status,"_selected_mask",None)
+        if mask is not None:
+            selected = mask > 0
+            annotated[selected] = (annotated[selected] * .5 + (0,127.5,0)).astype(np.uint8)
+        for side in ("left","right"):
+            line = getattr(status,f"_{side}_line",None)
+            if line is not None:
+                x1,y1,x2,y2 = line
+                cv2.line(annotated,(x1,y1),(x2,y2),(0,255,0),1)
         if self.figure is None:
             try:
                 if plt.get_backend().lower() == "agg":
@@ -32,7 +44,7 @@ class CameraPreview:
                 for axis in axes:
                     axis.axis("off")
                 self.plot = axes[0].imshow(raw, interpolation="nearest")
-                self.detection_plot = axes[1].imshow(observation, interpolation="nearest")
+                self.detection_plot = axes[1].imshow(annotated, interpolation="nearest")
                 self.figure.canvas.mpl_connect("key_press_event", self._preview_key)
                 self.figure.canvas.mpl_connect("close_event", self._preview_closed)
                 plt.show(block=False)
@@ -42,11 +54,9 @@ class CameraPreview:
                 self.preview = False
                 return
         self.plot.set_data(raw)
-        self.detection_plot.set_data(observation)
-        title = "CNN: five 40x80 frames (newest shown)\nYellow -> red; white -> green (Q to stop)"
-        lane = getattr(status, "_lane", None)
-        if lane is not None:
-            title += f"\nLane distance={lane['lane_distance']:.3f} m; alignment={lane['heading_alignment']:.2f}"
+        self.detection_plot.set_data(annotated)
+        title = "84x84 RGB crop; CNN uses 3 frames (Q to stop)"
+        title += f"\nLeft: {getattr(status,'_left_line_type',None) or 'missing'}; right: {getattr(status,'_right_line_type',None) or 'missing'}"
         self.detection_plot.axes.set_title(title)
         self.figure.canvas.draw_idle()
         self.figure.canvas.flush_events()
