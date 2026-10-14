@@ -1,19 +1,24 @@
 import csv
-from training.environment import MODEL_VERSION
+from training.environment import MODEL_VERSION, FRAME_COUNT, ACTION_NAMES
 from stable_baselines3.common.callbacks import BaseCallback
 
 
 def validate_model(model):
     """Reject old speed semantics/frame layouts before connecting hardware."""
     if (getattr(model,"model_version",None) != MODEL_VERSION
-            or model.observation_space.shape not in ((9,84,84),(84,84,9))
-            or getattr(model.action_space,"n",None) != 5):
-        raise ValueError("Use a model trained with the current three-frame RGB setup")
+            or model.observation_space.shape not in ((FRAME_COUNT,32,32),(32,32,FRAME_COUNT))
+            or getattr(model.action_space,"n",None) != len(ACTION_NAMES)):
+        raise ValueError("Retrain a model with the current 32x32 binary line-mask setup")
 
 
 def saved_speed(model):
     """Use the speed inside the zip, never today's config or its filename."""
     return float(model.training_config["MAX_SPEED"])
+
+
+def saved_steering_gain(model):
+    """Older binary checkpoints used .6; keep their action meanings intact."""
+    return float(model.training_config.get("STEERING_GAIN", .6))
 
 
 class SaveRewards(BaseCallback):
@@ -34,6 +39,7 @@ class SaveRewards(BaseCallback):
             "lane_center_error",
             "heading_error",
             "missing_line_steps",
+            "time_limit",
         ])
 
         self.batch_writer = csv.writer(batch_file)
@@ -89,6 +95,7 @@ class SaveRewards(BaseCallback):
                 info.get("lane_center_error"),
                 info.get("heading_error"),
                 info.get("missing_line_steps"),
+                info.get("TimeLimit.truncated", False),
             ])
             self.episode_file.flush()
 

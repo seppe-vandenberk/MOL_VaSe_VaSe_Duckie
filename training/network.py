@@ -1,4 +1,4 @@
-"""Paper-inspired CNN: five segmented frames -> 128 features -> five Q values."""
+"""Small CNN that supports 32x32 inputs: convolutions -> 128 features."""
 
 import torch
 from torch import nn

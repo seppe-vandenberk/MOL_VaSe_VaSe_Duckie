@@ -1,0 +1,71 @@
+{
+  "settings": {
+    "steps": 2000,
+    "train_minutes": 2.0,
+    "budget_minutes": 3.0,
+    "eval_runs": 1,
+    "eval_duration": 30.0,
+    "preview": false,
+    "device": "cuda",
+    "seed": 0,
+    "entity": "map_0/vehicle_0",
+    "steering_gain": null,
+    "warm_start": null
+  },
+  "dqn_settings": {
+    "buffer_size": 30000,
+    "learning_starts": 500,
+    "batch_size": 64,
+    "gamma": 0.99,
+    "train_freq": 1,
+    "gradient_steps": 1,
+    "target_update_interval": 500,
+    "exploration_initial_eps": 1.0,
+    "exploration_final_eps": 0.05,
+    "exploration_fraction": 0.2
+  },
+  "speed": 0.35,
+  "learning_rate": 0.0001,
+  "steering_gain": 0.6,
+  "evaluation": {
+    "runs": [
+      {
+        "seconds": 30.022864476020914,
+        "requested_seconds": 30.0,
+        "steps": 565,
+        "fps": 18.818990454800282,
+        "failures": 8,
+        "time_limits": 0,
+        "reward_total": -143.01103085620963,
+        "reward_per_step": -0.2531168687720524,
+        "both_lines_fraction": 0.40707964601769914,
+        "mean_abs_center_error": 0.3883942527639344,
+        "longest_clean_streak": 72,
+        "actions": {
+          "right": 246,
+          "slight_right": 135,
+          "straight": 135,
+          "slight_left": 0,
+          "left": 49
+        },
+        "termination_reasons": {
+          "lane not recovered for 40 steps": 8
+        },
+        "completed": true,
+        "passed": false,
+        "start_action": "straight",
+        "offset_steps": 0
+      }
+    ],
+    "requested_runs": 1,
+    "passed": false,
+    "failures": 8,
+    "note": "Camera-based lane-following check; laps and physical-bot transfer are not measured."
+  },
+  "model": "/home/svandenberk/Downloads/Duckiebot_Lab_Starter_Kit/MOL_DFL_VaSe_VaSe/models/dqn_simple_20261014_103539_989605+0200_lr0.0001_speed0.35_final_2000_steps.zip",
+  "steps": 2000,
+  "updates": 1500,
+  "training_seconds": 105.18055742501747,
+  "stop_reason": "step limit",
+  "total_seconds": 135.28731457400136
+}

@@ -1,0 +1,37 @@
+{
+  "settings": {
+    "steps": 30000,
+    "train_minutes": 25.0,
+    "budget_minutes": 30.0,
+    "eval_runs": 5,
+    "eval_duration": 60.0,
+    "preview": false,
+    "device": "auto",
+    "seed": 0,
+    "entity": "map_0/vehicle_0",
+    "steering_gain": null,
+    "warm_start": null
+  },
+  "dqn_settings": {
+    "buffer_size": 30000,
+    "learning_starts": 500,
+    "batch_size": 64,
+    "gamma": 0.99,
+    "train_freq": 1,
+    "gradient_steps": 1,
+    "target_update_interval": 500,
+    "exploration_initial_eps": 1.0,
+    "exploration_final_eps": 0.05,
+    "exploration_fraction": 0.2
+  },
+  "speed": 0.35,
+  "learning_rate": 0.0001,
+  "steering_gain": 0.6,
+  "evaluation": null,
+  "steps": 180,
+  "updates": 0,
+  "training_seconds": 12.174290735041723,
+  "stop_reason": "interrupted",
+  "model": "/home/svandenberk/Downloads/Duckiebot_Lab_Starter_Kit/MOL_DFL_VaSe_VaSe/models/dqn_simple_20261014_105204_302104+0200_lr0.0001_speed0.35_final_180_steps.zip",
+  "total_seconds": 12.263860362989362
+}
