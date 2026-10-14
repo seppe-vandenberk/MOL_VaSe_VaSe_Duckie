@@ -1,4 +1,4 @@
-"""Simple pre-HSV visual reward, on the same RGB crop seen by DQN."""
+"""Lane-centering reward computed from the same RGB crop seen by DQN."""
 
 import time
 import gymnasium as gym
@@ -9,13 +9,12 @@ from utils.line_detection import LineDetector
 
 
 class LineReward(LineDetector, gym.Env):
-    both_lines_reward = 25.
-    one_line_penalty = 8.
-    no_lines_penalty = 10.
-    edge_alignment_gain = 2.
-    step_penalty = .01
+    # Keep rewards near unit scale so Q targets do not grow into the thousands.
+    one_line_penalty = .5
+    no_lines_penalty = 1.
     max_missing_line_steps = 10
-    lost_lines_failure_penalty = 30.
+    lost_lines_failure_penalty = 4.
+    heading_penalty = .25
     observation_interval = .05
 
     def __init__(self, entity_name="map_0/vehicle_0", camera_settings=None):
@@ -31,8 +30,8 @@ class LineReward(LineDetector, gym.Env):
 
     def reward_settings(self):
         return {name: getattr(self,name) for name in (
-            "both_lines_reward", "one_line_penalty", "no_lines_penalty", "edge_alignment_gain",
-            "step_penalty", "max_missing_line_steps", "lost_lines_failure_penalty")}
+            "one_line_penalty", "no_lines_penalty", "max_missing_line_steps",
+            "lost_lines_failure_penalty", "heading_penalty")}
 
     def _camera(self):
         if self.last_frame_time is not None:
@@ -61,23 +60,33 @@ class LineReward(LineDetector, gym.Env):
     def reward_fn(self):
         left, right = self.detect(self._reward_image)
         self._line_alignment = 0.
-        if left is not None and right is not None and left[4] == "dashed" and right[4] == "solid":
-            width = self._reward_image.shape[1]
-            left_score = 1 - abs(left[1]) / (width * self.edge_band_fraction)
-            right_score = 1 - abs(width - 1 - right[1]) / (width * self.edge_band_fraction)
-            self._line_alignment = float(np.clip((left_score + right_score) / 2,0,1))
+        width = self._reward_image.shape[1]
+        if left is not None and right is not None:
             self.missing_steps = 0
             self.reason = None
-            return self.both_lines_reward + self.edge_alignment_gain * self._line_alignment - self.step_penalty, False
+            bottom_center = (left[2][0] + right[2][0]) / 2
+            top_center = (left[2][2] + right[2][2]) / 2
+            half_lane_width = max((right[1] - left[1]) / 2, width * .1)
+            center_error = float((bottom_center - (width - 1) / 2) / half_lane_width)
+            heading_error = float((top_center - bottom_center) / width)
+            center_score = 1. - min(abs(center_error), 1.)
+            heading_score = min(abs(heading_error) / .25, 1.)
+            self._line_alignment = center_score
+            self._lane_center_error = center_error
+            self._heading_error = heading_error
+            reward = center_score - self.heading_penalty * heading_score
+            return float(reward), False
+        self._lane_center_error = None
+        self._heading_error = None
         if left is not None or right is not None:
             self.missing_steps = 0
             self.reason = None
-            return -self.one_line_penalty - self.step_penalty, False
+            return -self.one_line_penalty, False
         self.missing_steps += 1
         self.reason = f"both lines missing for {self.missing_steps} steps"
         if self.missing_steps >= self.max_missing_line_steps:
             return -self.no_lines_penalty - self.lost_lines_failure_penalty, True
-        return -self.no_lines_penalty - self.step_penalty, False
+        return -self.no_lines_penalty, False
 
     def step(self, action):
         left, right = action
@@ -91,6 +100,8 @@ class LineReward(LineDetector, gym.Env):
     def _get_info(self):
         return {"left_line_type": self._left_line_type, "right_line_type": self._right_line_type,
                 "line_alignment": self._line_alignment, "missing_line_steps": self.missing_steps,
+                "lane_center_error": getattr(self, "_lane_center_error", None),
+                "heading_error": getattr(self, "_heading_error", None),
                 "termination_reason": self.reason}
 
     def close(self):

@@ -15,7 +15,7 @@ from training.environment import DiscreteSteering, FrameStackCamera, RoadCamera,
 from training.reward import LineReward
 from utils.utils import SaveRewards
 
-TOTAL_TIMESTEPS = 50_000
+TOTAL_TIMESTEPS = 100_000
 
 
 def main():
@@ -34,12 +34,13 @@ def main():
         speed=speed,
     )
     try:
-        # These are the settings recovered from the original RGB checkpoint.
+        # Use a larger replay window and finish exploration early enough to
+        # measure whether the learned policy improves during the same run.
         model = DQN(
-            "CnnPolicy",env,device="cuda",learning_rate=learning_rate,
-            buffer_size=10000,learning_starts=1000,batch_size=64,
-            gamma=.99,train_freq=4,gradient_steps=1,target_update_interval=10000,
-            exploration_initial_eps=1.0,exploration_final_eps=.05,exploration_fraction=.50,
+            "CnnPolicy",env,device="auto",learning_rate=learning_rate,
+            buffer_size=50000,learning_starts=2000,batch_size=32,
+            gamma=.99,train_freq=4,gradient_steps=1,target_update_interval=5000,
+            exploration_initial_eps=1.0,exploration_final_eps=.05,exploration_fraction=.25,
             verbose=1,
         )
         print(f"Learning device: {model.device}; {TOTAL_TIMESTEPS:,} steps; 3 RGB frames; 5 actions.")
@@ -48,11 +49,20 @@ def main():
         model.observation_projection = "camera_crop_v1"
         model.camera_settings = dict(env.unwrapped.camera_settings)
         model.action_names = list(ACTION_NAMES)
-        model.training_config = {"MAX_SPEED":speed,"LEARNING_RATE":learning_rate,"TOTAL_TIMESTEPS":TOTAL_TIMESTEPS}
+        model.training_config = {
+            "MAX_SPEED": speed,
+            "LEARNING_RATE": learning_rate,
+            "TOTAL_TIMESTEPS": TOTAL_TIMESTEPS,
+            "BUFFER_SIZE": 50000,
+            "LEARNING_STARTS": 2000,
+            "BATCH_SIZE": 32,
+            "TARGET_UPDATE_INTERVAL": 5000,
+            "EXPLORATION_FRACTION": .25,
+        }
         model.reward_settings = env.unwrapped.reward_settings()
         try:
-            with open(logs / "episode_rewards.csv","w",newline="") as episodes, \
-                 open(logs / "batch_rewards.csv","w",newline="") as batches:
+            with open(logs / f"{prefix}_episodes.csv","w",newline="") as episodes, \
+                 open(logs / f"{prefix}_batches.csv","w",newline="") as batches:
                 model.learn(total_timesteps=TOTAL_TIMESTEPS,callback=[
                     SaveRewards(episodes,batches),
                     CheckpointCallback(save_freq=5000,save_path=str(models),name_prefix=prefix),

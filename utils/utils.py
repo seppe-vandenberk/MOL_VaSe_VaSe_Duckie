@@ -31,11 +31,16 @@ class SaveRewards(BaseCallback):
             "left_line_type",
             "right_line_type",
             "line_alignment",
+            "lane_center_error",
+            "heading_error",
             "missing_line_steps",
         ])
 
         self.batch_writer = csv.writer(batch_file)
-        self.batch_writer.writerow(["batch", "steps", "reward_total"])
+        self.batch_writer.writerow([
+            "batch", "steps", "reward_total", "both_lines_fraction",
+            "mean_abs_center_error", "missing_frames",
+        ])
 
         self.episode = 0
         self.episode_steps = 0
@@ -44,6 +49,10 @@ class SaveRewards(BaseCallback):
         self.batch = 0
         self.batch_steps = 0
         self.batch_reward = 0.0
+        self.batch_both_lines = 0
+        self.batch_center_error = 0.0
+        self.batch_center_samples = 0
+        self.batch_missing_frames = 0
 
     def _on_step(self):
         reward = float(self.locals["rewards"][0])
@@ -53,6 +62,15 @@ class SaveRewards(BaseCallback):
 
         self.batch_steps += 1
         self.batch_reward += reward
+        info = self.locals["infos"][0]
+        if info.get("left_line_type") is not None and info.get("right_line_type") is not None:
+            self.batch_both_lines += 1
+        center_error = info.get("lane_center_error")
+        if center_error is not None:
+            self.batch_center_error += abs(float(center_error))
+            self.batch_center_samples += 1
+        if info.get("left_line_type") is None and info.get("right_line_type") is None:
+            self.batch_missing_frames += 1
         # DQN collects only four steps before an update. Log useful groups
         # of 256 steps instead of writing a CSV row for every small update.
         if self.batch_steps == 256:
@@ -60,8 +78,6 @@ class SaveRewards(BaseCallback):
 
         if self.locals["dones"][0]:
             self.episode += 1
-            info = self.locals["infos"][0]
-
             self.episode_writer.writerow([
                 self.episode,
                 self.episode_steps,
@@ -70,6 +86,8 @@ class SaveRewards(BaseCallback):
                 info.get("left_line_type"),
                 info.get("right_line_type"),
                 info.get("line_alignment"),
+                info.get("lane_center_error"),
+                info.get("heading_error"),
                 info.get("missing_line_steps"),
             ])
             self.episode_file.flush()
@@ -85,10 +103,17 @@ class SaveRewards(BaseCallback):
             self.batch,
             self.batch_steps,
             self.batch_reward,
+            self.batch_both_lines / max(self.batch_steps, 1),
+            self.batch_center_error / max(self.batch_center_samples, 1),
+            self.batch_missing_frames,
         ])
         self.batch_file.flush()
         self.batch_steps = 0
         self.batch_reward = 0.0
+        self.batch_both_lines = 0
+        self.batch_center_error = 0.0
+        self.batch_center_samples = 0
+        self.batch_missing_frames = 0
 
     def _on_training_end(self):
         if self.batch_steps:
