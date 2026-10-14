@@ -21,10 +21,10 @@ class LineReward(LineDetector, gym.Env):
     reset_settle_seconds = .15
     reward_version = "lane_recovery_color_v3"
 
-    def __init__(self, entity_name="map_0/vehicle_0", camera_settings=None):
+    def __init__(self, entity_name="map_0/vehicle_0", camera_settings=None, port=7501):
         super().__init__()
         self.camera_settings = dict(CAMERA_SETTINGS if camera_settings is None else camera_settings)
-        self.robot = DB21J(entity_name, simulated=True)
+        self.robot = DB21J(entity_name, simulated=True, port=port)
         self.components = (self.robot.camera, self.robot.motors, self.robot.reset_flag)
         try:
             for component in self.components:

@@ -44,10 +44,12 @@ class CNNPreviewTests(unittest.TestCase):
                 for index, plot in enumerate(viewer.cnn_plots):
                     np.testing.assert_array_equal(plot.get_array(), observation[:, :, index])
                 self.assertIn(f"{FRAME_COUNT}×32×32", viewer.figure._suptitle.get_text())
-                status = SimpleNamespace(_selected_mask=np.ones((32, 32), np.uint8))
+                status = SimpleNamespace(_selected_mask=np.ones((32, 32), np.uint8),
+                                         _guidance_status="Recovering yellow left boundary: 1.1/3s")
                 viewer.show(env.env.cropped_image, status, cnn_input=observation)
                 self.assertFalse(np.array_equal(viewer.detection_plot.get_array(), env.env.cropped_image))
                 np.testing.assert_array_equal(viewer.cnn_plots[-1].get_array(), observation[:, :, -1])
+                self.assertIn(status._guidance_status, viewer.detection_plot.axes.get_title())
             finally:
                 env.close()
 

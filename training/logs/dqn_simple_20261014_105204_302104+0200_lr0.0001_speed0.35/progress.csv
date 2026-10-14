@@ -1,2 +1,0 @@
-steps,seconds,fps,reward_per_step,failures,time_limits,both_lines_fraction,one_line_fraction,mean_abs_center_error,epsilon,updates,loss,right,slight_right,straight,slight_left,left
-180,11.420723484014161,15.760822880612597,0.37320899417002995,1,0,0.7444444444444445,0.25555555555555554,0.11733324943724907,0.9715,0,,34,29,37,43,37

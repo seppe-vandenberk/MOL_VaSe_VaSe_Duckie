@@ -13,18 +13,29 @@ from stable_baselines3 import DQN
 
 from duckietown.sdk.robots.duckiebot import DB21J
 
-from training.environment import camera_input, line_mask, CameraHistory
+from training.environment import camera_input, line_mask, CameraHistory, CAMERA_SETTINGS
 from utils.utils import validate_model
+from utils.paint_mask import floor_camera_settings
+from utils.real_settings import REAL_CROP_TOP, real_camera_settings
 from scripts.visualizer import CameraPreview
 from utils.line_detection import LineDetector
 
 
-def show_camera(bot_name, settings=None):
-    bot_name = bot_name.removesuffix(".local")
-    viewer = CameraPreview()
+# Set this to the real bot's camera service port, or pass --port.
+CAMERA_PORT = 11911
+
+
+def show_camera(bot_name, settings=None, *, simulated=False, port=CAMERA_PORT, crop_top=REAL_CROP_TOP):
+    bot_name = bot_name if simulated else bot_name.removesuffix(".local")
+    title = f"Duckiematrix camera — port {port}" if simulated else "Duckiebot real camera — camera only"
+    viewer = CameraPreview(window_title=title)
     detector = LineDetector()
+    settings = CAMERA_SETTINGS if settings is None else settings
+    if not simulated:
+        settings = real_camera_settings(settings, crop_top)
+    detector.camera_settings = settings
     history = CameraHistory()
-    robot = DB21J(bot_name, simulated=False)
+    robot = DB21J(bot_name, simulated=simulated, port=port)
     try:
         robot.camera.start()
         print(f"Viewing {bot_name}; Q or Ctrl+C stops. Motors are not started.")
@@ -58,9 +69,19 @@ def show_camera(bot_name, settings=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("duckiebot", help="bot name, e.g. quackenstein")
-    parser.add_argument("--model", type=Path,
+    parser.add_argument("--port", type=int, default=CAMERA_PORT, help="camera service port")
+    parser.add_argument("--model", type=Path, default=PROJECT_ROOT / "models/baseline.zip",
                         help="use the exact camera preprocessing saved in this model zip")
+    parser.add_argument("--floor-filter", action=argparse.BooleanOptionalAction, default=None,
+                        help="reject broad pale floor regions in the displayed CNN mask")
+    parser.add_argument("--road-value-max", type=int, help="dark-road brightness limit (0–255)")
+    parser.add_argument("--crop-top", type=float, default=REAL_CROP_TOP,
+                        help="fraction cropped from the top, matching run_real.py (default: 0.4)")
     args = parser.parse_args()
+    if not 1 <= args.port <= 65535:
+        parser.error("port must be between 1 and 65535")
+    if args.road_value_max is not None and not 0 <= args.road_value_max <= 255:
+        parser.error("road-value-max must be between 0 and 255")
     settings = None
     if args.model:
         if not args.model.is_file():
@@ -71,11 +92,15 @@ def main():
         except ValueError as error:
             parser.error(str(error))
         settings = model.camera_settings
+    if args.floor_filter is not None or args.road_value_max is not None:
+        settings = floor_camera_settings(CAMERA_SETTINGS if settings is None else settings,
+                                         args.floor_filter, args.road_value_max)
     try:
-        show_camera(args.duckiebot, settings=settings)
+        settings = real_camera_settings(CAMERA_SETTINGS if settings is None else settings, args.crop_top)
+        show_camera(args.duckiebot, settings=settings, port=args.port, crop_top=args.crop_top)
     except KeyboardInterrupt:
         print("Camera preview stopped.")
-    except RuntimeError as error:
+    except (ValueError, RuntimeError) as error:
         parser.exit(1, f"{error}\n")
 
 

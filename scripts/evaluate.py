@@ -102,22 +102,25 @@ def main():
     parser.add_argument("--runs", "--episodes", dest="runs", type=int, default=5)
     parser.add_argument("--duration", type=float, default=60.)
     parser.add_argument("--entity", default="map_0/vehicle_0")
+    parser.add_argument("--port", type=int, default=7501, help="simulator port: 7501 + offset")
     parser.add_argument("--device", default="auto", choices=("auto", "cpu", "cuda"))
     parser.add_argument("--same-start", action="store_true", help="disable initial steering perturbations")
     parser.add_argument("--output", type=Path, help="write metrics as JSON")
     args = parser.parse_args()
+    if not 1 <= args.port <= 65535:
+        parser.error("port must be between 1 and 65535")
     if args.runs <= 0 or not math.isfinite(args.duration) or args.duration <= 0:
         parser.error("runs and duration must be positive and finite")
     path = args.model
     if path is None:
-        paths = list((PROJECT_ROOT / "models").glob("dqn_simple_*.zip"))
+        paths = list((PROJECT_ROOT / "models").glob("*.zip"))
         if not paths:
             parser.error("No saved models found")
         path = max(paths, key=lambda p: p.stat().st_mtime_ns)
     print(f"Evaluating model: {path}", flush=True)
     model = DQN.load(path, device=args.device)
     validate_model(model)
-    reward_env = LineReward(entity_name=args.entity, camera_settings=model.camera_settings)
+    reward_env = LineReward(entity_name=args.entity, camera_settings=model.camera_settings, port=args.port)
     for name, value in getattr(model, "reward_settings", {}).items():
         if name in reward_env.reward_settings():
             setattr(reward_env, name, value)

@@ -4,7 +4,8 @@ from collections import deque
 import cv2
 import gymnasium as gym
 import numpy as np
-from scripts.visualizer import CameraPreview
+from scripts.visualizer import CameraPreview, AsyncCameraPreview
+from utils.paint_mask import paint_masks
 
 CAMERA_SETTINGS = {
     "crop_top": .50, "color_space": "RGB",
@@ -25,12 +26,7 @@ def camera_input(image, settings=None):
 def line_mask(image, settings=None):
     """Convert a cropped RGB image to one uint8 channel: paint=255, road=0."""
     settings = CAMERA_SETTINGS if settings is None else settings
-    hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
-    masks = [cv2.inRange(
-        hsv, tuple(settings.get(f"{color}_hsv_lower", CAMERA_SETTINGS[f"{color}_hsv_lower"])),
-        tuple(settings.get(f"{color}_hsv_upper", CAMERA_SETTINGS[f"{color}_hsv_upper"])),
-    ) for color in ("white", "yellow")]
-    return cv2.bitwise_or(*masks)[:, :, None]
+    return cv2.bitwise_or(*paint_masks(image, settings))[:, :, None]
 
 
 def steering_wheels(action, speed, steering_gain=.6):
@@ -58,9 +54,10 @@ class CameraHistory:
 
 
 class RoadCamera(gym.ObservationWrapper):
-    def __init__(self, env, preview=False):
+    def __init__(self, env, preview=False, asynchronous_preview=False):
         super().__init__(env)
-        self.viewer = CameraPreview() if preview else None
+        viewer_type = AsyncCameraPreview if asynchronous_preview else CameraPreview
+        self.viewer = viewer_type() if preview else None
         self.raw_image = None
         self.cropped_image = None
         self.observation_space = gym.spaces.Box(0,255,(32,32,1),np.uint8)

@@ -77,8 +77,8 @@ class SaveRewards(BaseCallback):
             self.batch_center_samples += 1
         if info.get("left_line_type") is None and info.get("right_line_type") is None:
             self.batch_missing_frames += 1
-        # DQN collects only four steps before an update. Log useful groups
-        # of 256 steps instead of writing a CSV row for every small update.
+        # Log useful groups of 256 environment steps so reward batches
+        # remain comparable when the learning-update frequency changes.
         if self.batch_steps == 256:
             self._write_batch()
 

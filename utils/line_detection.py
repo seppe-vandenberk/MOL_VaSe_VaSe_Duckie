@@ -2,6 +2,7 @@
 
 import cv2
 import numpy as np
+from utils.paint_mask import paint_masks
 
 
 class LineDetector:
@@ -26,12 +27,9 @@ class LineDetector:
         roi_top = 0
         bottom = height - 1
         # HSV is only used to select paint, as in the original RGB detector.
-        hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
-        settings = getattr(self, "camera_settings", {})
-        white = cv2.inRange(hsv, tuple(settings.get("white_hsv_lower", (0, 0, self.minimum_paint_brightness))),
-                            tuple(settings.get("white_hsv_upper", (179, 100, 255))))
-        yellow = cv2.inRange(hsv, tuple(settings.get("yellow_hsv_lower", (12, 60, 80))),
-                             tuple(settings.get("yellow_hsv_upper", (42, 255, 255))))
+        settings = dict(getattr(self, "camera_settings", {}))
+        settings.setdefault("white_hsv_lower", (0, 0, self.minimum_paint_brightness))
+        white, yellow = paint_masks(image, settings)
         paint = cv2.bitwise_or(white, yellow)
         paint[:roi_top, :] = 0
 
@@ -114,7 +112,7 @@ class LineDetector:
             if abs(dy) < 0.01:
                 continue
             bottom_x = float(cx + (bottom - cy) * dx / dy)
-            # Use the visible lower endpoint to pick a side; extrapolation to
+            # Use the visible lower endpoint for alignment; extrapolation to
             # the bottom edge can be wildly wrong on a curved marking.
             lower_y = min(bottom, y + span - 1)
             lower_points = points.reshape(-1, 2)

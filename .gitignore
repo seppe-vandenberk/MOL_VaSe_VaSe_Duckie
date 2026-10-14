@@ -234,3 +234,6 @@ __marimo__/
 # Ignore model runs
 models/*.zip
 logs/
+
+# Keep the reference checkpoint; generated models remain ignored.
+!models/baseline.zip

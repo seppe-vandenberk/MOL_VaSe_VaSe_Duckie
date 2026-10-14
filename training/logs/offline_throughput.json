@@ -1,7 +1,0 @@
-{
-  "device": "cpu",
-  "measured_steps": 1000,
-  "elapsed_seconds": 29.314316739037167,
-  "steps_per_second": 34.11302432535718,
-  "note": "Synthetic observations only; excludes simulator, camera, and resets."
-}

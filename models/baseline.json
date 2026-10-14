@@ -1,0 +1,145 @@
+{
+  "original_filename": "dqn_simple_20261014_111612_387125+0200_lr0.0001_speed0.35_final_23177_steps.zip",
+  "sha256": "3952d50af26fe74fad2a22928e34d267eecfffcf74e0990a980c1579047c8f4e",
+  "steps": 23177,
+  "speed": 0.35,
+  "learning_rate": 0.0001,
+  "model_version": "binary_paint32x32_v1",
+  "evaluation": {
+    "runs": [
+      {
+        "seconds": 60.038422419980634,
+        "requested_seconds": 60.0,
+        "steps": 946,
+        "fps": 15.756576569959533,
+        "failures": 0,
+        "time_limits": 0,
+        "reward_total": 601.0450664754245,
+        "reward_per_step": 0.6353541928915692,
+        "both_lines_fraction": 0.9661733615221987,
+        "mean_abs_center_error": 0.17070285237992808,
+        "longest_clean_streak": 946,
+        "actions": {
+          "right": 191,
+          "slight_right": 0,
+          "straight": 197,
+          "slight_left": 204,
+          "left": 354
+        },
+        "termination_reasons": {},
+        "completed": true,
+        "passed": true,
+        "start_action": "straight",
+        "offset_steps": 0
+      },
+      {
+        "seconds": 60.05495266796788,
+        "requested_seconds": 60.0,
+        "steps": 935,
+        "fps": 15.569073964131361,
+        "failures": 1,
+        "time_limits": 0,
+        "reward_total": 526.9740413938953,
+        "reward_per_step": 0.5636086004212784,
+        "both_lines_fraction": 0.9347593582887701,
+        "mean_abs_center_error": 0.18859219980922232,
+        "longest_clean_streak": 472,
+        "actions": {
+          "right": 157,
+          "slight_right": 5,
+          "straight": 248,
+          "slight_left": 139,
+          "left": 386
+        },
+        "termination_reasons": {
+          "lane not recovered for 40 steps": 1
+        },
+        "completed": true,
+        "passed": false,
+        "start_action": "slight_right",
+        "offset_steps": 5
+      },
+      {
+        "seconds": 60.046981897961814,
+        "requested_seconds": 60.0,
+        "steps": 945,
+        "fps": 15.737676901161228,
+        "failures": 0,
+        "time_limits": 0,
+        "reward_total": 448.16549837892507,
+        "reward_per_step": 0.4742492046337831,
+        "both_lines_fraction": 0.8645502645502645,
+        "mean_abs_center_error": 0.2184773843852604,
+        "longest_clean_streak": 945,
+        "actions": {
+          "right": 180,
+          "slight_right": 5,
+          "straight": 203,
+          "slight_left": 230,
+          "left": 327
+        },
+        "termination_reasons": {},
+        "completed": true,
+        "passed": false,
+        "start_action": "slight_left",
+        "offset_steps": 5
+      },
+      {
+        "seconds": 60.06330166204134,
+        "requested_seconds": 60.0,
+        "steps": 945,
+        "fps": 15.733400826302208,
+        "failures": 0,
+        "time_limits": 0,
+        "reward_total": 494.6343924026882,
+        "reward_per_step": 0.5234226374631621,
+        "both_lines_fraction": 0.926984126984127,
+        "mean_abs_center_error": 0.23633729822405466,
+        "longest_clean_streak": 945,
+        "actions": {
+          "right": 187,
+          "slight_right": 1,
+          "straight": 247,
+          "slight_left": 60,
+          "left": 450
+        },
+        "termination_reasons": {},
+        "completed": true,
+        "passed": true,
+        "start_action": "right",
+        "offset_steps": 5
+      },
+      {
+        "seconds": 59.74153568100883,
+        "requested_seconds": 60.0,
+        "steps": 931,
+        "fps": 15.583797593873278,
+        "failures": 1,
+        "time_limits": 0,
+        "reward_total": 451.6026570771608,
+        "reward_per_step": 0.48507267140403953,
+        "both_lines_fraction": 0.8990332975295381,
+        "mean_abs_center_error": 0.22196808847610552,
+        "longest_clean_streak": 473,
+        "actions": {
+          "right": 151,
+          "slight_right": 0,
+          "straight": 293,
+          "slight_left": 128,
+          "left": 359
+        },
+        "termination_reasons": {
+          "lane not recovered for 40 steps": 1
+        },
+        "completed": true,
+        "passed": false,
+        "start_action": "left",
+        "offset_steps": 5
+      }
+    ],
+    "requested_runs": 5,
+    "passed": false,
+    "failures": 2,
+    "note": "Camera-based lane-following check; laps and physical-bot transfer are not measured."
+  }
+}

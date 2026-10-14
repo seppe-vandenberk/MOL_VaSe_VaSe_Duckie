@@ -189,9 +189,34 @@ class BudgetTests(unittest.TestCase):
         self.assertEqual(len(stream.getvalue().splitlines()), 2)
 
     def test_invalid_budgets_are_rejected_before_connecting(self):
-        for args in (["--train-minutes", "31"], ["--steps", "0"], ["--budget-minutes", "nan"]):
+        for args in (["--train-minutes", "31"], ["--steps", "0"], ["--budget-minutes", "nan"], ["--learning-rate", "nan"], ["--learning-rate", "0"], ["--speed", "nan"], ["--speed", "0"], ["--port-offset", "48019"], ["--port-offset", "-1"], ["--run-name", "../outside"]):
             with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
                 parse_args(args)
+
+    def test_launcher_overrides_route_to_offset_and_save_actual_steps(self):
+        robot = MagicMock()
+        robot.camera.capture.return_value = np.zeros((480, 640, 3), np.uint8)
+        run_name = "dqn_simple_test_lr0.0002_speed0.4_offset20"
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "config.yaml").write_text("MAX_SPEED: 0.35\nLEARNING_RATE: 0.0001\n")
+            with patch("training.train.PROJECT_ROOT", root), \
+                 patch("training.reward.DB21J", return_value=robot) as factory, \
+                 patch.object(LineReward, "reset_settle_seconds", 0), \
+                 patch.object(LineReward, "observation_interval", 0), \
+                 patch("training.train.TrainingProgress", side_effect=lambda stream, deadline: TrainingProgress(stream, -1)), \
+                 contextlib.redirect_stdout(io.StringIO()):
+                main(["--steps", "40", "--eval-runs", "0", "--device", "cpu", "--no-preview",
+                      "--speed", ".4", "--learning-rate", ".0002", "--port-offset", "20", "--run-name", run_name])
+            factory.assert_called_once_with("map_0/vehicle_0", simulated=True, port=7521)
+            result = json.loads((root / "training/logs" / run_name / "summary.json").read_text())
+            self.assertEqual(result['steps'], 1)
+            self.assertEqual(Path(result['model']).name, run_name + "_final_1_steps.zip")
+            loaded = DQN.load(result['model'], device="cpu")
+            self.assertEqual(loaded.training_config['MAX_SPEED'], .4)
+            self.assertEqual(loaded.training_config['LEARNING_RATE'], .0002)
+            self.assertEqual(loaded.simulator_port_offset, 20)
+            self.assertEqual((root / "config.yaml").read_text(), "MAX_SPEED: 0.35\nLEARNING_RATE: 0.0001\n")
 
     def test_training_cli_saves_logs_checkpoint_and_summary(self):
         robot = MagicMock()
@@ -207,12 +232,16 @@ class BudgetTests(unittest.TestCase):
                  patch.object(LineReward, "reset_settle_seconds", 0), \
                  patch.object(LineReward, "observation_interval", 0), \
                  contextlib.redirect_stdout(io.StringIO()):
-                main(["--steps", "12", "--eval-runs", "0", "--device", "cpu"])
+                main(["--steps", "12", "--eval-runs", "0", "--device", "cpu", "--no-preview"])
             summaries = list(root.glob("training/logs/*/summary.json"))
             self.assertEqual(len(summaries), 1)
             result = json.loads(summaries[0].read_text())
             self.assertEqual(result["steps"], 12)
             self.assertTrue(Path(result["model"]).is_file())
+            loaded = DQN.load(result["model"], device="cpu")
+            self.assertTrue(loaded.camera_settings["floor_filter"]["enabled"])
+            self.assertEqual(loaded.camera_settings["floor_filter"]["excluded_floor_hsv_lower"], [130, 20, 0])
+            self.assertEqual(loaded.observation_projection, "camera_crop_hsv_paint_floor_v2")
             self.assertTrue((summaries[0].parent / "progress.csv").is_file())
             self.assertIsNone(result["evaluation"])
         robot.motors.set_pwm.assert_called_with(left=0., right=0.)

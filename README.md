@@ -1,72 +1,115 @@
 # MOL_VaSe_VaSe_Duckie
 
-The CNN receives 32×32 binary line masks. `FRAME_COUNT` in
-`training/environment.py` controls history length (currently one frame).
-The lower half of each RGB camera frame is resized, then HSV thresholds select
-white and yellow paint. Both colors become white (255); all other pixels become
-black (0). SB3 normalizes the masks to 0 and 1. Color thresholds are stored in
-each new model's camera settings.
+Train, evaluate, and test a Duckiebot lane-following DQN. Activate the
+`duckie-rl311` environment first. `environment.yml` records its dependencies;
+Duckietown Shell (`dts`) and Docker must also be installed for simulation.
 
-Training and real-bot previews show the raw camera, the RGB crop with line
-detections, and the exact masks supplied to the CNN. Press Q to stop.
-Train a new policy with `python training/train.py`; older RGB checkpoints are
-incompatible with the binary input. Older image sizes also need
-retraining for the new 32×32 input. A small CNN handles this reduced resolution.
-Preview a real camera without driving using
-`python scripts/view_real.py BOT_NAME`.
+The CNN receives a 32×32 binary mask of white and yellow tape from the lower
+half of the RGB camera image. Road and background are black. The optional floor
+filter rejects purple carpet and broad bright floor patches beside black mats.
+The viewers show raw RGB, detected boundaries, and the exact CNN mask.
 
-The crop keeps the bottom 50% and the full camera width. Resizing uses area
-interpolation. It preserves the camera's native lens distortion; it does not
-widen its optical field of view. Duckiematrix's current loop camera already has
-calibrated lens distortion enabled.
+`models/baseline.zip` is the retained 23,177-step checkpoint previously used for
+warm starts. `models/baseline.json` records its origin, checksum, and original
+evaluation results. New training runs save separate checkpoints.
 
-Training uses at most 30,000 steps or 25 minutes, whichever comes first, then
-five deterministic 60-second evaluation runs within a 30-minute overall budget.
-Camera waiting, resets, and learning count toward the budget. Saving and component
-shutdown may finish just after the deadline. The preview is off by default;
-use `--preview` to enable it. Duckiematrix must be running and producing frames.
+Edit the main controls at the top of `scripts/train_matrix.sh`:
 
 ```bash
-python training/train.py
-# Short run for inspecting throughput and failures before a full experiment:
-python training/train.py --steps 2000 --train-minutes 2 --budget-minutes 3 --eval-runs 1 --eval-duration 30
-# Initialise weights from a compatible checkpoint; replay and optimiser start fresh:
-python training/train.py --warm-start models/YOUR_MODEL.zip
-python scripts/evaluate.py --model models/YOUR_MODEL.zip --output training/logs/evaluation.json
+LEARNING_RATE="${LEARNING_RATE:-0.00001}"
+SPEED="${SPEED:-0.35}"
+BASELINE_MODEL="${BASELINE_MODEL:-baseline.zip}"
+STEPS="${STEPS:-30000}"
 ```
 
-The short-run DQN schedule starts learning after 500 steps, trains once per
-environment step with batches of 64, updates its target every 500 steps, and
-reduces exploration over the first 20% of the requested steps. The replay buffer
-holds 30,000 transitions. `config.yaml` still controls speed and learning rate.
-`--device cpu`, `--device cuda`, and `--seed` allow repeatable timing comparisons.
-
-Each run has its own folder under `training/logs/`, with episode rewards,
-256-step reward batches, `progress.csv`, and `summary.json`. Progress records
-actual steps/second, failures, time-limit resets, boundary visibility, centering
-error, action counts, exploration, and learning updates. Existing logs are kept.
-Checkpoints retain the camera settings, steering gain, reward version, and full
-training settings. A warm start preserves the source speed and steering mapping.
-
-Brief single-boundary loss uses the most recent valid lane width to provide
-recovery feedback. Yellow/white paint identifies the left/right boundary even
-when it crosses the image centre. Failure occurs after 10 consecutive missing-boundary steps
-or 40 steps without recovering both boundaries. A 1,200-step episode cap is a
-time-limit truncation, not a driving failure. Steering gain `.6` preserves older
-checkpoints' 2.125:1 maximum wheel ratio; `--steering-gain 1` trains with a 4:1
-ratio if tighter turns are needed. Deployment uses the saved gain automatically.
-
-Evaluation disables random exploration and varies initial steering slightly
-between runs. A run passes the camera-based screening when it completes its
-duration with zero failures, at least 90% two-boundary visibility, mean absolute
-normalized center error at most 0.30, and at least 10 steps/second. JSON includes
-the individual metrics even when screening fails. This does not measure completed
-laps, progress along the track, or transfer to a physical robot. Inspect complete
-laps before treating a checkpoint as ready for deployment. Evaluation exits with
-status 1 when screening fails. Use `--same-start` for controlled comparisons.
-
-Offline checks (no simulator or physical robot required):
+Run the launcher, or inspect its commands first:
 
 ```bash
-PYTHONDONTWRITEBYTECODE=1 MPLBACKEND=Agg python -m unittest discover -s tests -v
+bash scripts/train_matrix.sh --dry-run
+bash scripts/train_matrix.sh
+# Temporary overrides; BASELINE_MODEL can be a filename under models/ or a path:
+LEARNING_RATE=0.00002 SPEED=0.4 BASELINE_MODEL=baseline.zip bash scripts/train_matrix.sh --no-preview
+```
+
+The launcher warm-starts from the selected model with fresh replay and optimizer
+state, and enables floor filtering. It finds the first complete free set of all
+13 simulator ports starting at `PORT_OFFSET` (default 11), waits for the camera,
+and starts training. The selected offset appears in both commands and the model
+filename. Simultaneous launchers coordinate startup. Stopping the launcher stops
+its own simulator and saves available training progress.
+
+Training defaults to 30,000 requested steps or 25 minutes, followed by five
+60-second simulator checks within a 30-minute total budget. The preview is on by
+default; Q stops training and saves progress. Logs include rewards, progress, and
+`summary.json` under `training/logs/`. Checkpoint names include learning rate,
+speed, port offset, and actual completed steps. For warm starts, that last count
+is the steps added during this run; `warm_start_steps` records the source count.
+
+Inspect a running simulator without moving or resetting its robot. Set
+`SIMULATOR_PORT` at the top of `scripts/view_sim.py`, or pass the port printed by
+the launcher (`7501 + offset`):
+
+```bash
+python scripts/view_sim.py --port 7512
+python scripts/view_sim.py --port 7512 --model models/baseline.zip
+```
+
+Inspect the real camera without driving. Set `CAMERA_PORT` at the top of
+`scripts/view_real.py` if needed (default 11911):
+
+```bash
+python scripts/view_real.py ducksolo.local --floor-filter
+python scripts/view_real.py ducksolo.local --port 11911 --floor-filter
+```
+
+Both camera viewers accept `--model`, `--floor-filter`, `--no-floor-filter`, and
+`--road-value-max`. The simulator viewer enables the floor filter by default to
+match the launcher. Q closes a camera-only viewer.
+
+Evaluate a saved policy in a running simulator. Without `--model`, evaluation
+selects the newest checkpoint in `models/`, including the baseline:
+
+```bash
+python scripts/evaluate.py --model models/baseline.zip --port 7512 --output training/logs/evaluation.json
+```
+
+Evaluation disables exploration and varies initial steering. A run passes its
+camera-based screening with no lane-loss failures, at least 90% visibility of
+both boundaries, mean absolute center error at most 0.30, and at least 10
+steps/second. These metrics do not establish completed laps or physical transfer.
+
+Run a bounded physical trial with the driving viewer and saved diagnostics:
+
+```bash
+python scripts/run_real.py models/baseline.zip ducksolo.local --duration 10 --floor-filter --output training/logs/real_trial
+```
+
+Real-camera and steering defaults live in `utils/real_settings.py`:
+`REAL_CROP_TOP=0.4` retains the lower 60% of the image, and
+`REAL_STEERING_GAIN=1.0` gives a 4:1 outer/inner wheel ratio on full turns.
+The real viewer uses the same crop as the driver. Adjust them per run with
+`--crop-top` and `--steering-gain`:
+
+```bash
+python scripts/view_real.py ducksolo.local --floor-filter --crop-top 0.4
+python scripts/run_real.py models/baseline.zip ducksolo.local --duration 10 --floor-filter --crop-top 0.4 --steering-gain 1.0
+```
+
+Stronger steering reallocates the same total PWM between wheels; it does not
+raise straight-line power. The mask remains 32×32, though changing the crop changes
+where markings appear in the policy input. Simulator training retains its saved
+camera crop and steering mapping. Physical traction must be checked on the mat.
+Trial summaries record the applied crop, steering gain, and individual wheel PWM.
+
+The physical CLI requires both boundaries before moving, allows five seconds
+of single-boundary recovery, and stops after one second without either line.
+Override these with `--single-boundary-timeout` and `--no-boundary-timeout`.
+The preview shows which boundary is missing and the timer. Q stops the motors;
+shutdown always sends zero PWM. `MOTOR_GAIN` at the top of `run_real.py` controls
+real motor compensation. Explicit `--speed` bypasses that gain.
+
+Run offline regression tests without a simulator or robot:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 MPLBACKEND=Agg python -m unittest discover -s tests -q
 ```
