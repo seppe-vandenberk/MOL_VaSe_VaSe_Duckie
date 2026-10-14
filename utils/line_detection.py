@@ -1,4 +1,4 @@
-"""Detect thick white/yellow road paint in an 84x84 RGB image."""
+"""Detect the yellow left and white right boundaries in an RGB road crop."""
 
 import cv2
 import numpy as np
@@ -22,13 +22,16 @@ class LineDetector:
     def _find_road_lines(self, image):
         """Find thick bright painted regions, then fit their direction."""
         height, width = image.shape[:2]
-        # The image is already cropped and resized to the CNN's 84x84 input.
+        # The image is already cropped and resized to the policy input.
         roi_top = 0
         bottom = height - 1
         # HSV is only used to select paint, as in the original RGB detector.
         hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
-        white = cv2.inRange(hsv, (0, 0, self.minimum_paint_brightness), (179, 100, 255))
-        yellow = cv2.inRange(hsv, (12, 60, 80), (42, 255, 255))
+        settings = getattr(self, "camera_settings", {})
+        white = cv2.inRange(hsv, tuple(settings.get("white_hsv_lower", (0, 0, self.minimum_paint_brightness))),
+                            tuple(settings.get("white_hsv_upper", (179, 100, 255))))
+        yellow = cv2.inRange(hsv, tuple(settings.get("yellow_hsv_lower", (12, 60, 80))),
+                             tuple(settings.get("yellow_hsv_upper", (42, 255, 255))))
         paint = cv2.bitwise_or(white, yellow)
         paint[:roi_top, :] = 0
 
@@ -138,7 +141,11 @@ class LineDetector:
             kind = "dashed" if gaps else "solid"
             area = sum(cv2.contourArea(piece) for piece in pieces)
             candidate = (area, bottom_x, line, pieces, kind)
-            if visible_x < width * 0.50:
+            # Paint identity survives a boundary crossing the image centre.
+            # Position alone swaps left/right precisely when recovery is needed.
+            xs, ys = points.reshape(-1, 2).T
+            is_yellow = np.count_nonzero(yellow[ys, xs]) > np.count_nonzero(white[ys, xs])
+            if is_yellow:
                 left_candidates.append(candidate)
             else:
                 right_candidates.append(candidate)

@@ -16,22 +16,22 @@ from duckietown.sdk.robots.duckiebot import DB21J
 from duckietown.sdk.robots.duckiebot.generic import DTPSMotorsDriver
 from duckietown.sdk.middleware.dtps.components import GenericDTPSPublisher
 
-from training.environment import camera_input, steering_wheels, CameraHistory
+from training.environment import camera_input, line_mask, steering_wheels, CameraHistory
 from scripts.visualizer import CameraPreview
 from utils.line_detection import LineDetector
-from utils.utils import saved_speed, validate_model
+from utils.utils import saved_speed, saved_steering_gain, validate_model
 
 
 # Real-bot only: raise this to compensate for the motors' deadzone.
 # Example: total speed 0.45 and gain 1.5 give straight PWM 0.3375 per wheel.
-MOTOR_GAIN = 1.0
+MOTOR_GAIN = 1.5
 
 
-def real_wheels(action, speed, gain):
+def real_wheels(action, speed, gain, steering_gain=.6):
     """Scale the model's wheel commands, preserving steering and forward motion."""
     if not math.isfinite(gain) or gain <= 0:
         raise ValueError("MOTOR_GAIN must be positive and finite")
-    wheels = steering_wheels(action, speed) * gain
+    wheels = steering_wheels(action, speed, steering_gain) * gain
     # PWM cannot exceed 1. Scale both together to keep the steering ratio.
     maximum = float(wheels.max())
     if maximum > 1.0:
@@ -57,6 +57,7 @@ def drive(model, bot_name, speed, duration, preview=True, gain=MOTOR_GAIN):
     viewer = CameraPreview() if preview else None
     detector = LineDetector()
     history = CameraHistory()
+    steering_gain = saved_steering_gain(model)
     try:
         robot.motors.start()
         robot.motors.set_pwm(left=0.0, right=0.0)
@@ -69,11 +70,13 @@ def drive(model, bot_name, speed, duration, preview=True, gain=MOTOR_GAIN):
         last_frame = started
         while time.monotonic() - started < duration:
             image = camera_input(frame[:, :, [2, 1, 0]], model.camera_settings)
+            observation = history.push(line_mask(image, model.camera_settings))
             if viewer is not None:
                 detector.detect(image)
-                viewer.show(image, detector, raw_image=frame[:, :, [2,1,0]])
-            action, _ = model.predict(history.push(image), deterministic=True)
-            left, right = real_wheels(action, speed, gain)
+                viewer.show(image, detector, raw_image=frame[:, :, [2,1,0]],
+                            cnn_input=observation)
+            action, _ = model.predict(observation, deterministic=True)
+            left, right = real_wheels(action, speed, gain, steering_gain)
             # Use the shared steering mapping with the compensated real speed.
             robot.motors.set_pwm(left=float(left), right=float(right))
             remaining = 0.05 - (time.monotonic() - last_frame)
@@ -119,7 +122,7 @@ def main():
         gain = MOTOR_GAIN if args.speed is None else 1.0
         # Validate commands before starting hardware; no model-saved gain
         # overrides the editable constant above.
-        straight = real_wheels(2, speed, gain)
+        straight = real_wheels(2, speed, gain, saved_steering_gain(model))
     except ValueError as error:
         parser.error(str(error))
     print(

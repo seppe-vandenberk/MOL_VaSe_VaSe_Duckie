@@ -1,0 +1,18 @@
+episode,steps,reward_total,termination_reason,left_line_type,right_line_type,line_alignment,missing_line_steps,time_limit
+1,133,37.39058130979538,lane not recovered for 40 steps,solid,,0.032258064516129004,0,False
+2,139,36.5950248837471,lane not recovered for 40 steps,,solid,0.032258064516129004,0,False
+3,116,24.674833446741104,lane not recovered for 40 steps,,solid,0.30000000000000004,0,False
+4,116,23.122352361679077,lane not recovered for 40 steps,solid,,0.09677419354838712,0,False
+5,66,-20.87980306148529,both lines missing for 10 steps,,,0.0,10,False
+6,130,20.040593683719635,lane not recovered for 40 steps,,,0.0,3,False
+7,75,-12.474359571933746,lane not recovered for 40 steps,solid,,0.8518518518518519,0,False
+8,132,29.738851726055145,lane not recovered for 40 steps,solid,,0.032258064516129004,0,False
+9,138,35.56514921784401,lane not recovered for 40 steps,solid,,0.29032258064516125,0,False
+10,80,-6.752021849155426,lane not recovered for 40 steps,solid,,1.0,0,False
+11,77,-11.373498260974884,lane not recovered for 40 steps,solid,,0.8214285714285714,0,False
+12,129,25.63721352815628,lane not recovered for 40 steps,solid,,0.3548387096774194,0,False
+13,121,21.39003413915634,lane not recovered for 40 steps,,solid,0.09677419354838712,0,False
+14,101,7.107454597949982,lane not recovered for 40 steps,solid,,0.5172413793103448,0,False
+15,140,36.02969887852669,lane not recovered for 40 steps,,solid,0.3548387096774194,0,False
+16,114,16.42954382300377,lane not recovered for 40 steps,solid,,0.22580645161290325,0,False
+17,81,-9.743370473384857,lane not recovered for 40 steps,solid,,0.33333333333333337,0,False
