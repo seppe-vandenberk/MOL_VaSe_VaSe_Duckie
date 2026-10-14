@@ -113,3 +113,10 @@ Run offline regression tests without a simulator or robot:
 ```bash
 PYTHONDONTWRITEBYTECODE=1 MPLBACKEND=Agg python -m unittest discover -s tests -q
 ```
+
+Open `scripts/model_comparison.ipynb` and run all cells to compare every model in
+`training/logs`. It plots training reward per step, the fraction of frames showing
+both boundaries, weighted training/evaluation averages, and evaluation step counts
+for fully completed results. Incomplete runs are excluded from the evaluation step
+chart; completed runs that failed screening remain marked as failures. Standalone
+`evaluate.py --output` reports saved under `training/logs` are included too.
