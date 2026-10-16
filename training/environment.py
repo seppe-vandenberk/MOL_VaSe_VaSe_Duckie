@@ -31,8 +31,8 @@ def line_mask(image, settings=None):
 
 def steering_wheels(action, speed, steering_gain=.6):
     """Share total PWM; gain .6 gives a 2.125:1 ratio, gain 1 gives 4:1."""
-    if not 0 < speed <= 1:
-        raise ValueError("Speed must be between 0 and 1")
+    if not 0 < speed <= 2:
+        raise ValueError("Speed must be between 0 and 2")
     if not 0 < steering_gain <= 1:
         raise ValueError("Steering gain must be between 0 and 1")
     if int(action) != action or not 0 <= int(action) < len(ACTION_NAMES):

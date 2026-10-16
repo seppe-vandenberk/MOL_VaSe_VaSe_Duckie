@@ -78,6 +78,13 @@ camera-based screening with no lane-loss failures, at least 90% visibility of
 both boundaries, mean absolute center error at most 0.30, and at least 10
 steps/second. These metrics do not establish completed laps or physical transfer.
 
+To evaluate every checkpoint in `models/`, run
+[scripts/evaluate_models.ipynb](scripts/evaluate_models.ipynb). It calls
+`evaluate.py` for at least five runs per model and exports one CSV row per run,
+with training metadata, evaluation metrics, individual action counts, and
+termination reason counts. Setup and column definitions are in
+[the evaluation README](scripts/README_model_evaluation.md).
+
 Run a bounded physical trial with the driving viewer and saved diagnostics:
 
 ```bash

@@ -88,8 +88,8 @@ def parse_args(argv=None):
         parser.error("road-value-max must be between 0 and 255")
     if args.learning_rate is not None and (not math.isfinite(args.learning_rate) or args.learning_rate <= 0):
         parser.error("learning-rate must be positive and finite")
-    if args.speed is not None and (not math.isfinite(args.speed) or not 0 < args.speed <= 1):
-        parser.error("speed must be between 0 and 1")
+    if args.speed is not None and (not math.isfinite(args.speed) or not 0 < args.speed <= 2):
+        parser.error("speed must be between 0 and 2")
     if not 0 <= args.port_offset <= 48018:
         parser.error("port-offset must be between 0 and 48018 (all simulator ports must fit)")
     if args.run_name is not None and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.+-]{0,179}", args.run_name):
@@ -109,8 +109,8 @@ def main(argv=None):
     learning_rate = float(config["LEARNING_RATE"]) if args.learning_rate is None else args.learning_rate
     if args.warm_start and args.learning_rate is None:
         learning_rate *= .1
-    if not 0 < speed <= 1 or not math.isfinite(learning_rate) or learning_rate <= 0:
-        raise ValueError("MAX_SPEED must be in (0, 1] and LEARNING_RATE must be positive and finite")
+    if not 0 < speed <= 2 or not math.isfinite(learning_rate) or learning_rate <= 0:
+        raise ValueError("MAX_SPEED must be in (0, 2] and LEARNING_RATE must be positive and finite")
     steering_gain = args.steering_gain if args.steering_gain is not None else .6
     source = None
     if args.warm_start:

@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # Main controls: edit these defaults or set them in your terminal for one run.
-LEARNING_RATE="${LEARNING_RATE:-0.00001}"
-SPEED="${SPEED:-0.35}"
+LEARNING_RATE="${LEARNING_RATE:-0.000001}"
+SPEED="${SPEED:-0.5}"
 BASELINE_MODEL="${BASELINE_MODEL:-baseline.zip}"
 STEPS="${STEPS:-30000}"
 

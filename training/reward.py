@@ -12,7 +12,7 @@ class LineReward(LineDetector, gym.Env):
     # Keep rewards near unit scale so Q targets do not grow into the thousands.
     one_line_penalty = .5
     no_lines_penalty = 1.
-    max_missing_line_steps = 10
+    max_missing_line_steps = 5
     lost_lines_failure_penalty = 4.
     heading_penalty = .25
     observation_interval = .05
